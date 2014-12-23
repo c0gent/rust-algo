@@ -1,0 +1,334 @@
+#![allow(unused_imports, unused_mut, unused_assignments, unused_attributes)]
+#[phase(plugin, link)] extern crate log;
+
+
+
+use std::fmt;
+use std::default;
+use time;
+
+use common::{LOOPCOUNT, C_DEFAULT, C_RED, C_CYA, C_GRE, C_BLU, C_MAG, C_PUR, C_ORA, C_YEL, print_slice, generate_array, confirm_sorted, read_data_file};
+use insertion_sort;
+
+static MINIMUM_LEN: uint = 18;
+static PIVOT_RADIUS: uint = 1;
+static DEBUG: int = 0;
+
+// 29/12 fast
+// 23/11 fast
+
+// 12/0 2.25s(4M,1:50B), 20s(40M,1:50B),
+// 23/11 2.02s(4M,1:50B), 24s(40M,1:50B), 11s(40M,1:5k)
+
+pub fn quicksort() {
+
+	if (PIVOT_RADIUS * 2) >= (MINIMUM_LEN - 1) {
+		fail!("Pivot Radius too large. Must be less than half of Minimum Length - 1");
+	}
+
+	println!("\n=== QuickSort ===");
+
+	let mut time_start = time::get_time();
+
+	/*
+	print!("Generating Array...  ");
+	let box mut list = generate_array();
+	println!("Array Generated in: {}", time::get_time() - time_start);
+	
+
+	println!("Sorting...");
+	let mut time_start = time::get_time();
+	_quicksort(list.as_mut_slice(), 0);
+	println!("One Iteration Complete in: {}", time::get_time() - time_start);
+	*/
+
+	println!("Pivot Radius: ({}), Minimum Len: ({}), Looping ({}) times...", PIVOT_RADIUS, MINIMUM_LEN, LOOPCOUNT);
+	let mut total_errors = 0u;
+	let mut file_name = "data/QuickSort.txt";
+	for i in range(0u, LOOPCOUNT) {
+		if !(DEBUG == 0) {
+			print!("Next List ({})...\n", i);
+		}
+
+		print!("Sorting...   ")
+		time_start = time::get_time();
+		let box mut list = generate_array();
+		//let box mut list = read_data_file(file_name);
+		print!("Array Generated in: {}...   ", time::get_time() - time_start) ;
+
+		time_start = time::get_time();
+		_quicksort(list.as_mut_slice(), 0);
+		println!("Iteration ({}) Complete in: {}.", i, time::get_time() - time_start) ;
+
+		//print_array(&list_l, "final");
+		total_errors += confirm_sorted(list.as_slice(), DEBUG);
+		
+
+	}
+	if total_errors > 0 {
+		println!("\nTotal Sorting Errors: {}", total_errors);
+	} else {
+		println!("\n({}) Loops Completed Successfully!", LOOPCOUNT)
+	}
+}
+
+
+fn _quicksort<T: Primitive + PartialOrd + fmt::Show + default::Default>(list: &mut [T], level: uint) {
+	let len = list.len();
+
+	if DEBUG != 0 {
+		println!("");
+		print_slice(list, format!("1.TOP [LVL:{}, LEN:{}]", level, len).as_slice(), "", C_MAG);
+	}
+	
+	if len >= MINIMUM_LEN { 
+		let mid = (len - 1) / 2;
+		let pivot_rad = PIVOT_RADIUS;
+
+		if pivot_rad > 0 {
+			insertion_sort::insertion_sort(list.slice_mut(mid - pivot_rad, mid + pivot_rad + 1));
+
+			for k in range(0u, pivot_rad) {
+				list.swap(1 + k, (mid - pivot_rad) + k);
+				list.swap(mid + 1 + k, ((len - 1) - pivot_rad) + k);
+			}
+		}
+		list.swap(0, mid);
+		let mut pivot_val = list[0];
+
+		let i_init =  1;
+		let mut i = i_init;
+		let j_init = len - 1;
+		let mut j = j_init;
+		let mut lt_idx = 0u;
+				
+		if DEBUG != 0 {
+			print_slice(list, "2.PRE ", format!("[LVL:{}, LEN:{}][PIV:{b}{}{d}, I:{}, J:{}]", level, len, pivot_val, i, j, b=C_BLU, d=C_DEFAULT).as_slice(), C_CYA);
+		}
+
+		loop {
+			loop {
+				while list[j] > pivot_val && j > 0 {
+					j -= 1
+				}
+				if i < j {
+					if list[i] >= pivot_val {
+						list.swap(i,j);
+						if DEBUG != 0 {
+							print!(" SWAP({},{}) ", i, j);
+						}
+					} else if lt_idx == 0 {
+						lt_idx = i;
+					}
+				} else {
+					break;
+				}
+				i += 1;
+			}
+
+			if i < j_init || j < j_init {
+				break;
+			} else {
+				if lt_idx == 0 {
+					return;
+				} else {
+					if DEBUG != 0 {
+						print!("{p}RESET([0]{} -> [{}]{}){d}", pivot_val, lt_idx, list[lt_idx], p=C_PUR, d=C_DEFAULT);
+					}
+					list.swap(0,lt_idx);
+					pivot_val = list[0];
+					i = i_init;
+					j = j_init;
+					lt_idx = 0;
+				}
+			}
+		}
+
+		list.swap(0u, j);
+
+		if DEBUG != 0 {
+			print!(" END_SWAP({},{}) \n", 0u, j);
+		}		
+		if DEBUG != 0 {
+			let mut color = C_DEFAULT; 
+			print_slice(list, "3.POST", format!("[LVL:{}, LEN:{}][PIV:{b}{}{d}, {c}I:{}, J:{}{d}]", level, len, pivot_val, i, j, b=C_BLU, d=C_DEFAULT, c=color).as_slice(), C_GRE);
+		}
+
+		_quicksort(list.slice_mut(0u, j), level + 1);
+		_quicksort(list.slice_mut(j + 1, len), level + 1);
+		
+		
+		if DEBUG != 0 {
+			println!("");
+			print_slice(list, "4.BOT ", format!("[LVL:{}, LEN:{}][PIV:{b}{}{d}, I:{}, J:{}]",level, len, pivot_val, i, j, b=C_BLU, d=C_DEFAULT).as_slice(), C_ORA);
+		}
+	} else {
+		insertion_sort::insertion_sort(list);
+	}
+
+}
+
+	/*
+		if j < j_init && j > i_init {
+			list.swap(0u, j);
+			if DEBUG != 0 {
+				print!(" END_SWAP({},{}) ", 0u, j);
+			}
+		}
+		*/
+
+
+
+/*
+fn verify_median<T: Primitive + PartialOrd + fmt::Show>(med: T, e: T, f: T) -> bool {
+	print!{"verify_median -- {}, M({}), {}", e, med, f};
+	if !( (e >= med && f <= med) ||  (e <= med && f >= med)) { 
+		print!("Shit is wrong! ({}, (M{}), {})", e, med, f);
+		false
+	} else {
+		true
+	}
+}
+
+fn median<T: PartialOrd + Primitive + fmt::Show>(a: T, b: T, c: T) -> T {
+	//print!{"a: {}, b: {}, c: {}", a, b, c};
+	if a < b {
+		if b < c {
+			b
+		} else {
+			if c < a {
+				a
+			} else {
+				c
+			}
+		}
+	} else {
+		if c < b {
+			b
+		} else {
+			if c < a {
+				c
+			} else {
+				a
+			}
+		}
+		
+	}
+}
+
+*/
+
+		/*
+		if j > i_init && j < j_init { // if j > i_init && j < j_init {
+			//MOVED UP ABOVE FOR DEBUG PURPOSES: list.swap(0, j - 1);
+			_quicksort(list.slice_mut(0u, j + 1), level + 1, DEBUG);
+			_quicksort(list.slice_mut(j + 1, len), level + 1, DEBUG);
+		} else if j == j_init {
+			// j is at the end
+
+			//_quicksort(list.slice_mut(0u, len), level + 1, DEBUG);
+			//_quicksort(list.slice_mut(j, len), level + 1, DEBUG);
+		} else {
+			// j is at the beginning (j == i_init)
+			if list[len - 1] != list[0] {
+				_quicksort(list.slice_mut(0u, len), level + 1, DEBUG);
+			}
+			
+			//_quicksort(list.slice_mut(j + 1, len), level + 1, DEBUG);
+		}
+		*/
+
+	//print_slice(list.slice_mut(mid - pivot_rad, mid + pivot_rad + 1), "Mid_B", "", "");
+		//print_slice(list.slice_mut(mid - pivot_rad, mid + pivot_rad + 1), "Mid_A", "");
+		//print!("QS_Top -- Len: {}, Mid: {}, Pivot: {}", len, mid, pivot_val);
+		//print_slice(list, "QS_Top", "");
+		//print_slice(list.slice_mut(0, 1 + pivot_rad * 2), format!("Fir_{}", pivot_rad * 2).as_slice(), "Before");
+		//print_slice(list.slice_mut(0, 1 + pivot_rad), format!("Fir_{}", pivot_rad).as_slice(), "After");
+
+/*
+		if j == len - 1 {
+			print_slice(list, "B", "");
+		}
+		*/
+
+		//print!("QS_Bot -- Len: {}, Mid: {}, Pivot: {}, i: {}", len, mid, pivot_val, i);
+		//print_slice(list, "QS_Bot", "");
+
+/*
+		if false {// list[len - 1] == pivot_val {
+			print_slice(list, "***C", "");
+			print!("--- i[{}]: {}, j[{}]: {} ---", i, list[i], j, list[j] );
+		}
+		*/
+
+		//print!("Len: {}", len);
+		//print!("Pivot: {}", pivot_val);
+		//print!("i[{}]: {}, j[{}]: {}", i, list[i], j, list[j] );
+
+		//print!("Insertion Sorting...");
+
+
+
+/*
+		if i < j {
+			continue;
+		} else {
+			if i == (len - 1) {
+				if (!gt) && lt {
+					if DEBUG != 0 {
+						print!("{p}RESET({} -> {}){d}", pivot_val, lt_val, p=C_PUR, d=C_DEFAULT);
+					}
+					pivot_val = lt_val;
+					i = 1u + pivot_rad;
+					continue;
+				}
+			}
+			break;
+		}
+
+		loop {
+			if list[i] > pivot_val { //&& i < len
+				list.swap(i,j);
+				while list[j] > pivot_val && j > i {
+					j -= 1
+				}
+
+
+
+				while j > i {
+					if list[j] <= pivot_val {
+						
+						j -= 1;
+						gt = true;
+						if DEBUG != 0 {
+							print!(" SWAP({},{}) ", i, j);
+						}
+						break;
+					} else {
+						j -= 1;
+					}
+				}				
+			} else if list[i] < pivot_val && (!lt) {
+				lt = true;
+				lt_val = list[i];
+			}
+
+			i += 1;
+
+			if i < j {
+				continue;
+			} else {
+				if i == (len - 1) {
+					if (!gt) && lt {
+						if DEBUG != 0 {
+							print!("{p}RESET({} -> {}){d}", pivot_val, lt_val, p=C_PUR, d=C_DEFAULT);
+						}
+						pivot_val = lt_val;
+						i = 1u + pivot_rad;
+						continue;
+					}
+				}
+				break;
+			}
+		}
+		*/

@@ -1,0 +1,5 @@
+[package]
+
+name = "coursera"
+version = "0.0.1"
+authors = ["Nick Sanders <nsan1129@gmail.com>"]
